@@ -1,0 +1,43 @@
+# AI Processing Configuration
+sensor_measurements:
+  - name: "sound_level"
+    mqtt_topic: "sensor/audio/+"
+    influx_measurement: "mqtt_consumer"
+    field: "value"
+    processing:
+      window_size: 10
+      threshold: 500
+      anomaly_detection: true
+      
+  - name: "temperature"
+    mqtt_topic: "sensor/temperature/+"
+    influx_measurement: "temperature"
+    field: "value"
+    processing:
+      window_size: 5
+      threshold: 35
+      anomaly_detection: true
+
+ai_models:
+  anomaly_detection:
+    type: "isolation_forest"
+    contamination: 0.1
+    random_state: 42
+    
+  trend_analysis:
+    type: "exponential_smoothing"
+    alpha: 0.3
+
+mqtt_config:
+  host: "localhost"
+  port: 8883
+  username: "sensor_ingest"
+  password: "your_password"
+  ca_cert: "/etc/mosquitto/certs/ca.crt"
+
+influx_config:
+  host: "localhost"
+  port: 8086
+  database: "sensor_data"
+  username: "admin"
+  password: "your_password"
