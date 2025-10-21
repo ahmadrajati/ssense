@@ -38,6 +38,6 @@ mqtt_config:
 influx_config:
   host: "localhost"
   port: 8086
-  database: "sensor_data"
-  username: "admin"
-  password: "your_password"
+  database: "iot_data"
+  username: "iot_user"
+  password: "hosna@8933"
