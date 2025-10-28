@@ -93,7 +93,7 @@ class MQTTClassifier:
             # Parse incoming message
             payload = msg.payload.decode('utf-8')
             print(f"Received MQTT message: {payload}")
-            data = data.split(",")
+            data = payload.split(",")
             volume = data[3]
             peak = data[4]
 
