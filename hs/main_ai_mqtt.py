@@ -93,12 +93,24 @@ class MQTTClassifier:
             # Parse incoming message
             payload = msg.payload.decode('utf-8')
             print(f"Received MQTT message: {payload}")
-            data = json.loads(payload)
+            data = data.split(",")
+            volume = data[3]
+            peak = data[4]
+
+            volume = volume.replace("volume=", "")
+            peak = peak.replace("peak=", "")
+
+            timestamp = datetime.utcnow().isoformat()
+            #peint(payload)
+
+            #data = json.loads(payload)
             # Try to parse as JSON
-            print(data.get('volume'))
-            print(data.get('peak'))
-            print(data.get('timestamp'))
-            try:
+
+            
+            #print(data.get('volume'))
+            #print(data.get('peak'))
+            #print(data.get('timestamp'))
+            """try:
                 
                 volume = data.get('volume')
                 peak = data.get('peak')
@@ -107,7 +119,7 @@ class MQTTClassifier:
                 # If not JSON, try to parse as simple value
                 volume = -50#float(payload)
                 peak = -50#volume
-                timestamp = datetime.utcnow().isoformat()
+                timestamp = datetime.utcnow().isoformat()"""
             
             # Add to buffer with timestamp
             point = {
