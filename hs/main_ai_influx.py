@@ -117,12 +117,15 @@ class InfluxDBHandler:
         json_body = []
         
         for result in results:
+            print(result["timestamp"])
+            print(type(result["timestamp"]))
             point = {
                 "measurement": "sound_classification",
-                #"time": result["timestamp"],
+                "time": str(result["timestamp"]),
                 "tags": {
                     "source_measurement": "sound_volume",
-                    "predicted_cluster": f"cluster_{result['cluster']}"
+                    "predicted_cluster": f"cluster_{result['cluster']}",
+                    "time":1,
                 },
                 "fields": {
                     "cluster": int(result["cluster"]),
