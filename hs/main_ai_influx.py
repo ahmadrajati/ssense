@@ -119,7 +119,7 @@ class InfluxDBHandler:
         for result in results:
             point = {
                 "measurement": "sound_classification",
-                "time": result["timestamp"],
+                #"time": result["timestamp"],
                 "tags": {
                     "source_measurement": "sound_volume",
                     "predicted_cluster": f"cluster_{result['cluster']}"
