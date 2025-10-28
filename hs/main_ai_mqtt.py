@@ -88,6 +88,7 @@ class MQTTClassifier:
     
     def on_message(self, client, userdata, msg):
         """MQTT message callback"""
+        print(msg)
         try:
             # Parse incoming message
             payload = msg.payload.decode('utf-8')
@@ -272,7 +273,7 @@ class MQTTClassifier:
     def _stats_loop(self):
         """Periodic statistics reporting"""
         while True:
-            time.sleep(30)  # Report every 30 seconds
+            time.sleep(5)  # Report every 30 seconds
             print(f"\n--- Statistics ---")
             print(f"Data buffer size: {len(self.data_buffer)}")
             print(f"Total classifications: {self.processed_count}")
@@ -302,7 +303,7 @@ def main():
     MQTT_CONFIG = {
         'host': 'localhost',      # Your MQTT broker host
         'port': 1883,             # Your MQTT broker port
-        'topic': 'sound/volume',  # MQTT topic to subscribe to
+        'topic': "sensors/sound_volume" ,  # MQTT topic to subscribe to
         'username': 'iot_user',           # If required
         'password': "hosna@8933"            # If required
     }
