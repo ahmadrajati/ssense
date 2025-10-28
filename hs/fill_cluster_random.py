@@ -10,6 +10,25 @@ MQTT_TOPIC = "sensors/sound_volume"  # Changed from /json to match your Telegraf
 MQTT_USERNAME = "iot_user"
 MQTT_PASSWORD = "hosna@8933"
 
+def generate_clustered_value():
+    # Choose a random cluster
+    cluster = random.choices([1, 2, 3], weights=[60, 30, 10])[0]
+    
+    if cluster == 1:
+        # First cluster: mean -65, std 15
+        value = random.gauss(-65, 15)
+    elif cluster == 2:
+        # Second cluster: mean -40, std 20
+        value = random.gauss(-40, 20)
+    else:
+        # Third cluster: mean -15, std 10
+        value = random.gauss(-15, 10)
+    
+    # Ensure value doesn't exceed 0 (maximum)
+    value = min(value, 0)
+    
+    return round(value, 1), cluster
+
 def send_influx_data():
     # Use Client() instead of Client() to fix deprecation warning
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -19,9 +38,9 @@ def send_influx_data():
     try:
         message_count = 0
         while True:
-            # Generate random sound data
-            volume = round(random.uniform(-80, 0), 1)
-            peak = round(random.uniform(-50, 0), 1)
+            # Generate clustered sound data
+            volume, cluster = generate_clustered_value()
+            peak = volume+10+ random.random()*10#, _ = generate_clustered_value()
             
             # Create InfluxDB line protocol format
             # Format: measurement,tag=value field=value timestamp
@@ -33,7 +52,7 @@ def send_influx_data():
             
             message_count += 1
             current_time = datetime.now().strftime("%H:%M:%S")
-            print(f"[{current_time}] #{message_count}: {volume} dB (peak: {peak} dB)")
+            print(f"[{current_time}] #{message_count}: Cluster {cluster}, Volume: {volume} dB (peak: {peak} dB)")
             
             time.sleep(2)
             

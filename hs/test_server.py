@@ -28,8 +28,8 @@ def send_json_data():
                     "room": "lab"
                 },
                 "fields": {
-                    "volume": round(random.uniform(40, 80), 1),
-                    "peak": round(random.uniform(50, 90), 1)
+                    "volume": round(random.uniform(-80, 0), 1),
+                    "peak": round(random.uniform(-50, 0), 1)
                 },
                 "timestamp": int(time.time() * 1000000000)
             }
