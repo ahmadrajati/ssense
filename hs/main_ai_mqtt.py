@@ -93,12 +93,12 @@ class MQTTClassifier:
             # Parse incoming message
             payload = msg.payload.decode('utf-8')
             print(f"Received MQTT message: {payload}")
-            data = payload.split(",")
-            volume = data[3]
-            peak = data[4]
+            data = str(payload).split(",")
+            volume = data[2]
+            peak = data[3]
 
-            volume = volume.replace("volume=", "")
-            peak = peak.replace("peak=", "")
+            volume = volume.replace("room=lab volume=", "")
+            peak = peak.replace("peak=", "").split(" ")[0]
 
             timestamp = datetime.utcnow().isoformat()
             #peint(payload)
