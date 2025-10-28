@@ -303,8 +303,8 @@ def main():
         'host': 'localhost',      # Your MQTT broker host
         'port': 1883,             # Your MQTT broker port
         'topic': 'sound/volume',  # MQTT topic to subscribe to
-        'username': '',           # If required
-        'password': ''            # If required
+        'username': 'iot_user',           # If required
+        'password': "hosna@8933"            # If required
     }
     
     try:
