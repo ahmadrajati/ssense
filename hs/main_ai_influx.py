@@ -125,7 +125,7 @@ class InfluxDBHandler:
                 "tags": {
                     "source_measurement": "sound_volume",
                     "predicted_cluster": f"cluster_{result['cluster']}",
-                    "time":1,
+                    #"time":1,
                 },
                 "fields": {
                     "cluster": int(result["cluster"]),
