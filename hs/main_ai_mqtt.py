@@ -9,6 +9,9 @@ import threading
 from collections import deque
 import time
 import warnings
+import yaml  # Add this import
+import os
+
 warnings.filterwarnings('ignore')
 
 class MQTTClassifier:
@@ -101,26 +104,7 @@ class MQTTClassifier:
             peak = peak.replace("peak=", "").split(" ")[0]
 
             timestamp = datetime.utcnow().isoformat()
-            #peint(payload)
 
-            #data = json.loads(payload)
-            # Try to parse as JSON
-
-            
-            #print(data.get('volume'))
-            #print(data.get('peak'))
-            #print(data.get('timestamp'))
-            """try:
-                
-                volume = data.get('volume')
-                peak = data.get('peak')
-                timestamp = data.get('timestamp', datetime.utcnow().isoformat())
-            except json.JSONDecodeError:
-                # If not JSON, try to parse as simple value
-                volume = -50#float(payload)
-                peak = -50#volume
-                timestamp = datetime.utcnow().isoformat()"""
-            
             # Add to buffer with timestamp
             point = {
                 'volume': float(volume),
@@ -300,37 +284,60 @@ class MQTTClassifier:
         self.mqtt_client.disconnect()
         print("MQTT classifier stopped.")
 
+def load_config(config_path="config.yaml"):
+    """Load configuration from YAML file"""
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        print(f"Configuration loaded from {config_path}")
+        return config
+    except FileNotFoundError:
+        print(f"Config file {config_path} not found. Using default configuration.")
+        return get_default_config()
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML file: {e}")
+        raise
+
+def get_default_config():
+    """Return default configuration if YAML file is not found"""
+    return {
+        'influxdb': {
+            'host': 'localhost',
+            'port': 8086,
+            'database': 'iot_data',
+            'username': '',
+            'password': ''
+        },
+        'mqtt': {
+            'host': 'localhost',
+            'port': 1883,
+            'topic': 'sensors/sound_volume',
+            'username': 'iot_user',
+            'password': 'hosna@8933'
+        },
+        'model': {
+            'model_path': 'best_classification_model_random_forest.pkl',
+            'scaler_path': 'scaler.pkl',
+            'window_size': 10
+        }
+    }
+
 def main():
-    # Configuration
-    MODEL_PATH = "best_classification_model_random_forest.pkl"  # Update with your model filename
-    SCALER_PATH = "scaler.pkl"
-    
-    # InfluxDB Configuration
-    INFLUX_CONFIG = {
-        'host': 'localhost',
-        'port': 8086,
-        'database': 'iot_data',
-        'username': '',  # If required
-        'password': ''   # If required
-    }
-    
-    # MQTT Configuration
-    MQTT_CONFIG = {
-        'host': 'localhost',      # Your MQTT broker host
-        'port': 1883,             # Your MQTT broker port
-        'topic': "sensors/sound_volume" ,  # MQTT topic to subscribe to
-        'username': 'iot_user',           # If required
-        'password': "hosna@8933"            # If required
-    }
+    # Load configuration from YAML file
+    config = load_config()
     
     try:
-        # Initialize classifier
+        # Initialize classifier using configuration from YAML
         classifier = MQTTClassifier(
-            model_path=MODEL_PATH,
-            scaler_path=SCALER_PATH,
-            influx_config=INFLUX_CONFIG,
-            mqtt_config=MQTT_CONFIG
+            model_path=config['model']['model_path'],
+            scaler_path=config['model']['scaler_path'],
+            influx_config=config['influxdb'],
+            mqtt_config=config['mqtt']
         )
+        
+        # Set window size from config if available
+        if 'window_size' in config['model']:
+            classifier.window_size = config['model']['window_size']
         
         # Start processing
         classifier.start()
@@ -340,59 +347,4 @@ def main():
         import traceback
         traceback.print_exc()
 
-def test_mqtt_publisher():
-    """Test function to publish sample MQTT messages"""
-    import paho.mqtt.client as mqtt
-    import json
-    import time
-    
-    def publish_test_data():
-        client = mqtt.Client()
-        client.connect('localhost', 1883, 60)
-        
-        # Simulate different clusters
-        cluster_params = {
-            0: {'mean': -65, 'std': 25},   # Cluster 0: Low values
-            1: {'mean': -40, 'std': 30},    # Cluster 1: Medium values  
-            2: {'mean': -15, 'std': 20}     # Cluster 2: High values
-        }
-        
-        print("Publishing test MQTT messages...")
-        
-        for i in range(50):
-            # Rotate through clusters
-            cluster = i % 3
-            params = cluster_params[cluster]
-            
-            # Generate sample data
-            volume = np.random.normal(params['mean'], params['std'])
-            volume = min(volume, 0)  # Apply constraint
-            
-            message = {
-                'volume': float(volume),
-                'peak': float(volume * 1.1),
-                'timestamp': datetime.utcnow().isoformat(),
-                'sequence': i
-            }
-            
-            client.publish('sound/volume', json.dumps(message))
-            print(f"Published: {message}")
-            time.sleep(1)  # Send every second
-        
-        client.disconnect()
-    
-    # Run test publisher in separate thread
-    import threading
-    publisher_thread = threading.Thread(target=publish_test_data)
-    publisher_thread.daemon = True
-    publisher_thread.start()
-
-if __name__ == "__main__":
-    # Install required packages if not already installed:
-    # pip install paho-mqtt influxdb
-    
-    # Uncomment the next line to test with sample MQTT data
-    # test_mqtt_publisher()
-    
-    # Start the main classifier
-    main()
+# ... rest of your code (test_mqtt_publisher function remains the same)

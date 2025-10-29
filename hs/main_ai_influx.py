@@ -4,6 +4,11 @@ from influxdb import InfluxDBClient
 import joblib
 from datetime import datetime, timedelta
 import warnings
+import yaml
+import argparse
+import sys
+import os
+
 warnings.filterwarnings('ignore')
 
 class TimeSeriesClassifier:
@@ -64,7 +69,7 @@ class InfluxDBHandler:
         self.client.switch_database(database)
         print(f"Connected to InfluxDB at {host}:{port}, database: {database}")
     
-    def query_volume_data(self, start_time="-1h", end_time="now()", limit=1000):
+    def query_volume_data(self, start_time, end_time, limit=1000):
         """
         Query sound volume data from InfluxDB
         Args:
@@ -74,10 +79,14 @@ class InfluxDBHandler:
         Returns:
             DataFrame with time series data
         """
+        # Format timestamps for InfluxDB query
+        start_time_str = f"'{start_time}'" if not start_time.startswith('now()') and not start_time.endswith('h') else start_time
+        end_time_str = f"'{end_time}'" if not end_time.startswith('now()') and not end_time.endswith('h') else end_time
+        
         query = f'''
         SELECT "volume", "peak" 
         FROM "sound_volume" 
-        WHERE time >= {start_time} AND time <= {end_time}
+        WHERE time >= {start_time_str} AND time <= {end_time_str}
         ORDER BY time DESC
         LIMIT {limit}
         '''
@@ -117,15 +126,12 @@ class InfluxDBHandler:
         json_body = []
         
         for result in results:
-            print(result["timestamp"])
-            print(type(result["timestamp"]))
             point = {
                 "measurement": "sound_classification",
                 "time": str(result["timestamp"]),
                 "tags": {
                     "source_measurement": "sound_volume",
                     "predicted_cluster": f"cluster_{result['cluster']}",
-                    #"time":1,
                 },
                 "fields": {
                     "cluster": int(result["cluster"]),
@@ -200,32 +206,114 @@ def process_volume_windows(df, classifier, window_size=10, step_size=5, use_volu
                   
         except Exception as e:
             print(f"Error processing window starting at index {i}: {e}")
-    
+     
     return results
 
+def load_config_from_yaml(yaml_file='config.yaml'):
+    """
+    Load InfluxDB configuration from YAML file
+    Args:
+        yaml_file: path to YAML configuration file
+    Returns:
+        dict: configuration dictionary
+    """
+    try:
+        with open(yaml_file, 'r') as file:
+            config = yaml.safe_load(file)
+        
+        # Extract InfluxDB configuration
+        influx_config = config.get('influxdb', {})
+        
+        return {
+            "host": influx_config.get('host', 'localhost'),
+            "port": influx_config.get('port', 8086),
+            "username": influx_config.get('user', ''),
+            "password": influx_config.get('pass', ''),
+            "database": influx_config.get('database', 'iot_data')
+        }
+        
+    except FileNotFoundError:
+        print(f"Warning: Config file '{yaml_file}' not found. Using default configuration.")
+        return {
+            "host": "localhost",
+            "port": 8086,
+            "username": "",
+            "password": "",
+            "database": "iot_data"
+        }
+    except Exception as e:
+        print(f"Error loading config from YAML: {e}. Using default configuration.")
+        return {
+            "host": "localhost",
+            "port": 8086,
+            "username": "",
+            "password": "",
+            "database": "iot_data"
+        }
+
+def parse_arguments():
+    """
+    Parse command line arguments
+    Returns:
+        argparse.Namespace: parsed arguments
+    """
+    parser = argparse.ArgumentParser(description='Process sound volume data and classify using ML model')
+    
+    parser.add_argument('--start-time', required=True, 
+                       help='Start time for data query (e.g., "2024-01-01T00:00:00Z" or "-1h")')
+    parser.add_argument('--end-time', required=True,
+                       help='End time for data query (e.g., "2024-01-01T01:00:00Z" or "now()")')
+    parser.add_argument('--config', default='config.yaml',
+                       help='Path to YAML configuration file (default: config.yaml)')
+    parser.add_argument('--model', default='best_classification_model_random_forest.pkl',
+                       help='Path to trained model file')
+    parser.add_argument('--scaler', default='scaler.pkl',
+                       help='Path to scaler file')
+    parser.add_argument('--window-size', type=int, default=10,
+                       help='Window size for processing (default: 10)')
+    parser.add_argument('--step-size', type=int, default=5,
+                       help='Step size between windows (default: 5)')
+    parser.add_argument('--use-peak', action='store_true',
+                       help='Use peak field instead of volume field')
+    
+    return parser.parse_args()
+
 def main():
-    # Configuration - Update these if your InfluxDB requires authentication
-    INFLUX_CONFIG = {
-        "host": "localhost",
-        "port": 8086,
-        "username": "",  # Leave empty if no authentication
-        "password": "",  # Leave empty if no authentication
-        "database": "iot_data"
-    }
+    # Parse command line arguments
+    args = parse_arguments()
     
-    # Model paths - update with your actual model filename
-    MODEL_PATH = "best_classification_model_random_forest.pkl"  # Update with your actual model name
-    SCALER_PATH = "scaler.pkl"
+    # Load configuration from YAML file
+    print(f"Loading configuration from {args.config}...")
+    INFLUX_CONFIG = load_config_from_yaml(args.config)
     
-    # Processing configuration
-    QUERY_START_TIME = "-1h"  # Query last 1 hour of data
-    WINDOW_SIZE = 10          # Same as training (10 time points)
-    STEP_SIZE = 5             # Step between windows (50% overlap)
-    USE_VOLUME_FIELD = True   # Set to False to use 'peak' field instead of 'volume'
+    # Model paths
+    MODEL_PATH = args.model
+    SCALER_PATH = args.scaler
+    
+    # Processing configuration from arguments
+    QUERY_START_TIME = args.start_time
+    QUERY_END_TIME = args.end_time
+    WINDOW_SIZE = args.window_size
+    STEP_SIZE = args.step_size
+    USE_VOLUME_FIELD = not args.use_peak  # If --use-peak is set, use_volume=False
+    
+    print(f"\nConfiguration:")
+    print(f"  Time range: {QUERY_START_TIME} to {QUERY_END_TIME}")
+    print(f"  Window size: {WINDOW_SIZE}, Step size: {STEP_SIZE}")
+    print(f"  Using field: {'peak' if args.use_peak else 'volume'}")
+    print(f"  InfluxDB: {INFLUX_CONFIG['host']}:{INFLUX_CONFIG['port']}")
+    print(f"  Database: {INFLUX_CONFIG['database']}")
     
     try:
         # Initialize classifier
-        print("Loading trained model and scaler...")
+        print("\nLoading trained model and scaler...")
+        if not os.path.exists(MODEL_PATH):
+            print(f"Error: Model file '{MODEL_PATH}' not found")
+            return
+        if not os.path.exists(SCALER_PATH):
+            print(f"Error: Scaler file '{SCALER_PATH}' not found")
+            return
+            
         classifier = TimeSeriesClassifier(MODEL_PATH, SCALER_PATH)
         print(f"Model type: {type(classifier.model).__name__}")
         print("Model loaded successfully!")
@@ -241,10 +329,11 @@ def main():
         )
         
         # Query volume data
-        print(f"Querying sound volume data from last hour...")
+        print(f"Querying sound volume data from {QUERY_START_TIME} to {QUERY_END_TIME}...")
         volume_data = influx_handler.query_volume_data(
             start_time=QUERY_START_TIME,
-            limit=1000
+            end_time=QUERY_END_TIME,
+            limit=10000  # Increased limit for larger time ranges
         )
         
         if volume_data.empty:
